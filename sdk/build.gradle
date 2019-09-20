@@ -1,0 +1,11 @@
+/*
+ * @copyright defined in LICENSE.txt
+ */
+
+dependencies {
+  implementation ("com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}")
+  implementation ("io.aergo:heraj-transport:${herajVersion}")
+  implementation ("io.aergo:heraj-common:${herajVersion}")
+  implementation ("io.aergo:heraj-util:${herajVersion}")
+  implementation ("org.bouncycastle:bcpkix-jdk15on:${bouncyCastleVersion}")
+}

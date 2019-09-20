@@ -1,0 +1,234 @@
+/*
+ * @copyright defined in LICENSE.txt
+ */
+
+buildscript {
+  repositories {
+    maven {
+      url "https://plugins.gradle.org/m2/"
+    }
+    google()
+    mavenCentral()
+  }
+  dependencies {
+    classpath "gradle.plugin.nl.javadude.gradle.plugins:license-gradle-plugin:0.14.0"
+    classpath "com.jfrog.bintray.gradle:gradle-bintray-plugin:1.+"
+    classpath "com.github.jengelman.gradle.plugins:shadow:4.0.3"
+  }
+}
+
+repositories {
+  mavenLocal()
+  maven {
+    url "http://dist.wso2.org/maven2"
+  }
+  mavenCentral()
+  jcenter()
+}
+
+def javaVersion7 = JavaVersion.VERSION_1_7
+def javaVersion8 = JavaVersion.VERSION_1_8
+
+def javaProjects = [
+  project('sdk')
+]
+
+def exampleProjects = [
+  project('examples'),
+]
+
+
+ext {
+  lombokVersion = '1.18.8'
+  jacksonVersion = '2.6.7'
+  herajVersion = '1.1.0'
+  bouncyCastleVersion = '1.60'
+}
+
+configure(javaProjects) {
+  apply plugin: 'java-library'
+  apply plugin: 'maven-publish'
+  apply plugin: 'com.github.hierynomus.license-report'
+  apply plugin: 'idea'
+  apply plugin: 'eclipse'
+  apply plugin: 'com.jfrog.bintray'
+  apply plugin: 'com.github.johnrengelman.shadow'
+
+  def projectBaseName = 'openkeychainj-' + project.name
+
+  sourceCompatibility = javaVersion7
+  targetCompatibility = javaVersion7
+
+  repositories {
+    mavenLocal()
+    maven {
+      url "http://dist.wso2.org/maven2"
+    }
+    mavenCentral()
+    jcenter()
+  }
+
+  eclipseJdt.doLast( {
+    ant.propertyfile(file: ".settings/org.eclipse.core.resources.prefs") {
+      ant.entry(key: "eclipse.preferences.version", value: "1")
+      ant.entry(key: "encoding/<project>", value: "utf8")
+    }
+  } )
+
+  idea {
+    module {
+      outputDir file('build/classes/java/main')
+      testOutputDir file('build/classes/java/test')
+    }
+  }
+
+  compileJava.options.encoding = 'UTF-8'
+  compileTestJava.options.encoding = 'UTF-8'
+
+  dependencies {
+    compileOnly "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+    testImplementation "org.projectlombok:lombok:${lombokVersion}"
+    
+    implementation 'org.slf4j:slf4j-api:1.7.25'
+
+    runtime 'ch.qos.logback:logback-classic:1.2.3'
+    testImplementation 'junit:junit:4.12'
+    testImplementation 'org.mockito:mockito-core:2.23.0'
+    testImplementation('org.powermock:powermock-api-mockito2:2.0.0-beta.5') {
+      exclude group: 'org.mockito', module: 'mockito-core'
+    }
+    testImplementation 'org.powermock:powermock-module-junit4:2.0.0-beta.5'
+  }
+
+  test {
+    if(JavaVersion.current().isJava9Compatible()) {
+      jvmArgs('--add-opens', 'java.base/java.lang=ALL-UNNAMED')
+      jvmArgs('--add-opens', 'java.base/java.lang.reflect=ALL-UNNAMED')
+      jvmArgs('--add-opens', 'java.base/java.lang.invoke=ALL-UNNAMED')
+      jvmArgs('--add-opens', 'java.base/java.math=ALL-UNNAMED')
+      jvmArgs('--add-opens', 'java.base/java.net=ALL-UNNAMED')
+      jvmArgs('--add-opens', 'java.base/java.nio=ALL-UNNAMED')
+      jvmArgs('--add-opens', 'java.base/java.util=ALL-UNNAMED')
+      jvmArgs('--add-opens', 'java.base/java.util.stream=ALL-UNNAMED')
+      jvmArgs('--add-opens', 'java.base/java.io=ALL-UNNAMED')
+      jvmArgs('--add-opens', 'java.xml/jdk.xml.internal=ALL-UNNAMED')
+    }
+
+    maxParallelForks = Math.max(1, Runtime.runtime.availableProcessors())
+    exclude '**/*Tests.class'
+    exclude '**/*IT.class'
+  }
+
+  task integrationTest (type: Test) {
+    if(JavaVersion.current().isJava9Compatible()) {
+      jvmArgs('--add-opens', 'java.base/java.lang=ALL-UNNAMED')
+      jvmArgs('--add-opens', 'java.base/java.lang.reflect=ALL-UNNAMED')
+      jvmArgs('--add-opens', 'java.base/java.lang.invoke=ALL-UNNAMED')
+      jvmArgs('--add-opens', 'java.base/java.math=ALL-UNNAMED')
+      jvmArgs('--add-opens', 'java.base/java.net=ALL-UNNAMED')
+      jvmArgs('--add-opens', 'java.base/java.nio=ALL-UNNAMED')
+      jvmArgs('--add-opens', 'java.base/java.util=ALL-UNNAMED')
+      jvmArgs('--add-opens', 'java.base/java.util.stream=ALL-UNNAMED')
+      jvmArgs('--add-opens', 'java.base/java.io=ALL-UNNAMED')
+      jvmArgs('--add-opens', 'java.xml/jdk.xml.internal=ALL-UNNAMED')
+    }
+
+    // must be single thread because of funding
+    maxParallelForks = 1
+    include '**/*IT.class'
+  }
+
+  jar {
+    archivesBaseName = projectBaseName
+  }
+
+  task install {
+    dependsOn publishToMavenLocal
+  }
+
+  task sourceJar(type: Jar) {
+    from sourceSets.main.allJava
+    classifier = 'sources'
+  }
+
+  javadoc {
+    if(JavaVersion.current().isJava9Compatible()) {
+      options.addBooleanOption('html5', true)
+    }
+  }
+
+  task javadocJar(type: Jar) {
+    from javadoc
+    classifier = 'javadoc'
+  }
+
+  publishing {
+    publications {
+      maven(MavenPublication) {
+        groupId = project.group
+        artifactId = projectBaseName
+        version = project.version
+
+        from components.java
+        artifact sourceJar
+        artifact javadocJar
+      }
+    }
+  }
+
+  bintray {
+    user = System.getProperty("bintrayUser")
+    key = System.getProperty("bintrayKey")
+    pkg {
+      userOrg = System.getProperty("bintrayUser")
+      repo = 'maven'
+      name = 'openkeychainj-' + project.name
+      licenses = ['MIT']
+      websiteUrl = 'https://github.com/aergoio/openkeychainj'
+      vcsUrl = 'https://github.com/aergoio/openkeychainj'
+      version {
+        name = project.version
+        vcsTag = project.version
+      }
+    }
+    publications = ['maven']
+  }
+
+  shadowJar {
+    def shadowPostFix = 'fat'
+    baseName = projectBaseName + "-${shadowPostFix}"
+    classifier = null
+  }
+
+}
+
+configure(exampleProjects) {
+  apply plugin: 'java'
+
+  sourceCompatibility = javaVersion7
+  targetCompatibility = javaVersion7
+
+  repositories {
+    mavenLocal()
+    maven {
+      url "http://dist.wso2.org/maven2"
+    }
+    mavenCentral()
+    jcenter()
+  }
+}
+
+apply plugin: 'java'
+
+task alljavadoc(type: Javadoc) {
+  source javaProjects.findAll{ it.name != 'protobuf' }.collect { it.sourceSets.main.allJava }
+  classpath = files(javaProjects.collect { it.sourceSets.main.compileClasspath })
+  destinationDir = file("${buildDir}/docs/javadoc")
+  if (JavaVersion.current().isJava8Compatible()) {
+    options.addStringOption('Xwerror', '-quiet')
+  }
+  if(JavaVersion.current().isJava9Compatible()) {
+    options.addBooleanOption('html5', true)
+  }
+}

@@ -1,0 +1,8 @@
+/*
+ * @copyright defined in LICENSE.txt
+ */
+rootProject.name = 'openkeychainj'
+
+include 'sdk'
+include 'examples'
+
