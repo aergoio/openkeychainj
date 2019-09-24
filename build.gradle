@@ -178,8 +178,8 @@ configure(javaProjects) {
   }
 
   bintray {
-    user = System.getProperty("bintrayUser")
-    key = System.getProperty("bintrayKey")
+    user = System.getenv("bintrayUser")
+    key = System.getenv("bintrayKey")
     pkg {
       userOrg = 'aergoio'
       repo = 'maven'
